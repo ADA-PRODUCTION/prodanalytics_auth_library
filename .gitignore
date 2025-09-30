@@ -1,0 +1,14 @@
+# Python packaging and testing
+*.egg-info/
+.pytest_cache/
+dist/
+build/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+*.md
