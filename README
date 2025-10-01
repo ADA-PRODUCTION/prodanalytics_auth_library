@@ -1,0 +1,38 @@
+# prodanalytics_auth_library
+
+A reusable Python library for validating X-API-KEY authentication in microservices. Centralizes header extraction, key comparison against `APITOKEN5` env var, parameter bundling for logging, and status dict construction.
+
+## Installation
+
+Install from GitHub repo:
+pip install git+https://github.com/ADA-PRODUCTION/prodanalytics_auth_library.git
+
+OR
+
+In main app's requirements.txt:
+git+https://github.com/ADA-PRODUCTION/prodanalytics_auth_library.git
+
+
+
+## Usage
+
+Import and instantiate with optional logging callback
+
+from flask import Flask
+from prodanalytics_auth_library import ApiKeyValidator
+from utils_backend import logging_report
+
+app = Flask(__name__)
+
+validator = ApiKeyValidator(logging_report_func=logging_report)
+
+@app.route('/parameters/<operator_name>/<lease_name>/...', methods=['POST'])
+def parameterspost(operator_name, lease_name, ...):
+    api_name = 'parameterspost'
+    try:
+        status = validator.validate(operator_name, lease_name, api_name)  # Validates and logs
+        # Your Mongo logic...
+        return "Success"  # Or LoggingReport.logging(api_name)
+    except ValueError as e:
+        # Handles INVALID/UNDEFINED (e.g., "401003: Invalid X-API-KEY.")
+        return "Auth failed: " + str(e)  # Or LoggingReport.logging_error(api_name, e)
