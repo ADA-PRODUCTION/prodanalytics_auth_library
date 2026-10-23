@@ -5,14 +5,22 @@ from datetime import datetime
 from typing import Optional, Dict, Any, Callable
 from flask import request
 
+from .tokens import TokenStore, current_token, default_store, token_is_valid  # noqa: F401
+
 class ApiKeyValidator:
     """
-    Simple X-API-KEY validator: String check against env APITOKEN5.
+    X-API-KEY validator for the token named by key_env (default APITOKEN5).
+
+    Values come from the rotating token file when it is mounted, else the
+    environment (see tokens.py), and any live value is accepted, so a token can
+    rotate with no restart and no failed request.
     Bundles params (operator_name, lease_name) for args_str/logging.
     """
     def __init__(self, key_env: str = 'APITOKEN5',
                  logging_report_func: Optional[Callable[[str, str, str], None]] = None):
-        self.api_token = os.getenv(key_env)
+        self.key_env = key_env
+        self.store = default_store()
+        self.api_token = self.store.current(key_env)
         if not self.api_token:
             raise ValueError(f"{key_env} env var missing.")
         self.logging_report = logging_report_func or self._default_logging_report
@@ -53,7 +61,7 @@ class ApiKeyValidator:
             self.logging_report(f'{status["statusType"]} | {status["statusCode"]} | {args_str} | {status["statusMessage"]} | trace:{trace_id}', 'ERROR', api_name)
             raise ValueError(f"{status['statusCode']}: {status['statusMessage']}")
 
-        if api_key != self.api_token:
+        if not self.store.is_valid(self.key_env, api_key):
             status = self._status_dict('INVALID', 401003, 'Invalid X-API-KEY.')
             self.logging_report(f'{status["statusType"]} | {status["statusCode"]} | {args_str} | {status["statusMessage"]} | trace:{trace_id}', 'ERROR', api_name)
             raise ValueError(f"{status['statusCode']}: {status['statusMessage']}")
