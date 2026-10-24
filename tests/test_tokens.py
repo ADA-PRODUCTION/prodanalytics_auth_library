@@ -119,3 +119,20 @@ def test_validator_accepts_previous_value_during_rotation(token_file):
     assert validator.validate("Op", "Lease", "api", headers={"X-API-KEY": "new"})["statusType"] == "VALID"
     with pytest.raises(ValueError, match="401003"):
         validator.validate("Op", "Lease", "api", headers={"X-API-KEY": "stale"})
+
+
+def test_package_imports_without_flask(monkeypatch):
+    """Pollers and workers without Flask must still be able to send tokens."""
+    import builtins, importlib, sys
+    real_import = builtins.__import__
+
+    def no_flask(name, *args, **kwargs):
+        if name == "flask" or name.startswith("flask."):
+            raise ModuleNotFoundError("No module named 'flask'")
+        return real_import(name, *args, **kwargs)
+
+    for mod in [m for m in sys.modules if m == "prodanalytics_auth_library" or m.startswith("prodanalytics_auth_library.") or m == "flask"]:
+        monkeypatch.delitem(sys.modules, mod)
+    monkeypatch.setattr(builtins, "__import__", no_flask)
+    pkg = importlib.import_module("prodanalytics_auth_library")
+    assert callable(pkg.current_token) and callable(pkg.token_is_valid)
