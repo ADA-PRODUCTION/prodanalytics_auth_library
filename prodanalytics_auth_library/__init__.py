@@ -3,7 +3,6 @@ import json
 import logging
 from datetime import datetime
 from typing import Optional, Dict, Any, Callable
-from flask import request
 
 from .tokens import TokenStore, current_token, default_store, token_is_valid  # noqa: F401
 
@@ -49,7 +48,12 @@ class ApiKeyValidator:
         Params bundled for args_str/logging (as current).
         Returns status dict; raises ValueError with code:msg on fail.
         """
-        headers = headers if headers is not None else request.headers
+        if headers is None:
+            # Flask only matters when reading the current request's headers, so
+            # import it here: services without Flask can still use the token
+            # helpers (current_token / token_is_valid).
+            from flask import request
+            headers = request.headers
 
         args = [operator_name or '', lease_name or '']
         args_str = ' | '.join(map(str, args))
